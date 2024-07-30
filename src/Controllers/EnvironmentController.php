@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use RachidLaasri\LaravelInstaller\Events\EnvironmentSaved;
 use RachidLaasri\LaravelInstaller\Helpers\EnvironmentManager;
 use Validator;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Session;
 
 class EnvironmentController extends Controller
 {
@@ -19,7 +21,7 @@ class EnvironmentController extends Controller
     protected $EnvironmentManager;
 
     /**
-     * @param  EnvironmentManager  $environmentManager
+     * @param EnvironmentManager $environmentManager
      */
     public function __construct(EnvironmentManager $environmentManager)
     {
@@ -63,8 +65,8 @@ class EnvironmentController extends Controller
     /**
      * Processes the newly saved environment configuration (Classic).
      *
-     * @param  Request  $input
-     * @param  Redirector  $redirect
+     * @param Request $input
+     * @param Redirector $redirect
      * @return \Illuminate\Http\RedirectResponse
      */
     public function saveClassic(Request $input, Redirector $redirect)
@@ -80,8 +82,8 @@ class EnvironmentController extends Controller
     /**
      * Processes the newly saved environment configuration (Form Wizard).
      *
-     * @param  Request  $request
-     * @param  Redirector  $redirect
+     * @param Request $request
+     * @param Redirector $redirect
      * @return \Illuminate\Http\RedirectResponse
      */
     public function saveWizard(Request $request, Redirector $redirect)
@@ -89,6 +91,10 @@ class EnvironmentController extends Controller
         $rules = config('installer.environment.form.rules');
         $messages = [
             'environment_custom.required_if' => trans('installer_messages.environment.wizard.form.name_required'),
+            'password.letters' => 'The :attribute must contain at least one letter.',
+            'password.mixed' => 'The :attribute must contain both uppercase and lowercase letters.',
+            'password.numbers' => 'The :attribute must contain at least one number.',
+            'password.symbols' => 'The :attribute must contain at least one symbol.',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -102,12 +108,15 @@ class EnvironmentController extends Controller
                 'database_connection' => trans('installer_messages.environment.wizard.form.db_connection_failed'),
             ]);
         }
-
+        
+        
+        file_put_contents(storage_path('accountData.txt'), json_encode(['email' => $request->input('email'), 'password' => $request->input('password')]));
+        
         $results = $this->EnvironmentManager->saveFileWizard($request);
 
         event(new EnvironmentSaved($request));
 
-        return $redirect->route('LaravelInstaller::database')
+        return $redirect->route('LaravelInstaller::requirements')
                         ->with(['results' => $results]);
     }
 
@@ -115,12 +124,12 @@ class EnvironmentController extends Controller
      * TODO: We can remove this code if PR will be merged: https://github.com/RachidLaasri/LaravelInstaller/pull/162
      * Validate database connection with user credentials (Form Wizard).
      *
-     * @param  Request  $request
+     * @param Request $request
      * @return bool
      */
     private function checkDatabaseConnection(Request $request)
     {
-        $connection = $request->input('database_connection');
+        $connection = $request->input('db_connection');
 
         $settings = config("database.connections.$connection");
 
@@ -130,11 +139,11 @@ class EnvironmentController extends Controller
                 'connections' => [
                     $connection => array_merge($settings, [
                         'driver' => $connection,
-                        'host' => $request->input('database_hostname'),
-                        'port' => $request->input('database_port'),
-                        'database' => $request->input('database_name'),
-                        'username' => $request->input('database_username'),
-                        'password' => $request->input('database_password'),
+                        'host' => $request->input('db_host'),
+                        'port' => $request->input('db_port'),
+                        'database' => $request->input('db_database'),
+                        'username' => $request->input('db_username'),
+                        'password' => $request->input('db_password'),
                     ]),
                 ],
             ],

@@ -1,6 +1,7 @@
 <?php
 
 namespace RachidLaasri\LaravelInstaller\Helpers;
+use Illuminate\Support\Facades\Process;
 
 class RequirementsChecker
 {
@@ -14,7 +15,7 @@ class RequirementsChecker
     /**
      * Check for the server requirements.
      *
-     * @param  array  $requirements
+     * @param array $requirements
      * @return array
      */
     public function check(array $requirements)
@@ -30,12 +31,45 @@ class RequirementsChecker
 
                         if (! extension_loaded($requirement)) {
                             $results['requirements'][$type][$requirement] = false;
-
                             $results['errors'] = true;
                         }
                     }
                     break;
-                    // check apache requirements
+                // check functions requirements
+                case 'functions':
+                    foreach ($requirements[$type] as $requirement) {
+                        $results['requirements'][$type][$requirement] = true;
+
+                        if (! function_exists($requirement)) {
+                            $results['requirements'][$type][$requirement] = false;
+                            $results['errors'] = true;
+                        }
+                    }
+                    break;
+                // check java requirements
+                case 'java':
+                    $results['requirements'][$type]['Compatible'] = true;
+                    $supported = $this->isJavaVersionBetween($requirements[$type])['supported'];
+                    if (! $supported) {
+                        $results['requirements'][$type]['Compatible'] = false;
+                        $results['errors'] = true;
+                    }
+                    break;
+                // check jq requirements
+                case 'jq':
+                    $jqInstalled = $this->isJqInstalled();
+                    if(!$jqInstalled)
+                        $results['errors'] = !$jqInstalled;
+                    $results['requirements'][$type]['Installed'] = $jqInstalled;
+                    break;
+                // check fatoora requirements
+                case 'fatoora':
+                    $fatooraInstalled = $this->isFatooraInstalled();
+                    if(!$fatooraInstalled)
+                        $results['errors'] = !$fatooraInstalled;
+                    $results['requirements'][$type]['Installed'] = $fatooraInstalled;
+                    break;
+                // check apache requirements
                 case 'apache':
                     foreach ($requirements[$type] as $requirement) {
                         // if function doesn't exist we can't check apache modules
@@ -111,4 +145,48 @@ class RequirementsChecker
     {
         return $this->_minPhpVersion;
     }
+    
+    public function isJavaVersionBetween($data=[]) 
+    {
+        $minVersion= $data['minVersion']; 
+        $maxVersion= $data['maxVersion']; 
+
+        $process = Process::forever()->run('java -version 2>&1');
+    
+        if (!$process->successful())
+            $supported = false;
+    
+        $output = $process->output();
+    
+        // Extract the version number
+        preg_match('/version "([\d.]+)_?\d*"/', $output, $matches);
+    
+        if (isset($matches[1])) {
+            $version = $matches[1];
+            $supported = version_compare($version, $minVersion, '>=') && version_compare($version, $maxVersion, '<=');
+        }
+        else
+            $supported = false;
+        
+         return [
+            'supported' => $supported,
+            'current' => $version ?? null,
+            'minVersion' => $minVersion,
+            'maxVersion' => $maxVersion,
+        ];
+    }
+    
+    public function isJqInstalled() 
+    {
+        $process = Process::forever()->run('jq --version 2>&1');
+        return $process->successful();
+    }
+    
+    public function isFatooraInstalled() 
+    {
+        $process = Process::forever()->run('fatoora 2>&1');
+        return $process->successful();
+    }
+    
+    
 }

@@ -4,6 +4,7 @@ namespace RachidLaasri\LaravelInstaller\Controllers;
 
 use Illuminate\Routing\Controller;
 use RachidLaasri\LaravelInstaller\Helpers\RequirementsChecker;
+use Illuminate\Support\Facades\Process;
 
 class RequirementsController extends Controller
 {
@@ -13,7 +14,7 @@ class RequirementsController extends Controller
     protected $requirements;
 
     /**
-     * @param  RequirementsChecker  $checker
+     * @param RequirementsChecker $checker
      */
     public function __construct(RequirementsChecker $checker)
     {
@@ -33,7 +34,9 @@ class RequirementsController extends Controller
         $requirements = $this->requirements->check(
             config('installer.requirements')
         );
-
-        return view('vendor.installer.requirements', compact('requirements', 'phpSupportInfo'));
+        
+        $javaInfo = $this->requirements->isJavaVersionBetween(config('installer.requirements.java'));
+            
+        return view('vendor.installer.requirements', compact('requirements', 'phpSupportInfo', 'javaInfo'));
     }
 }

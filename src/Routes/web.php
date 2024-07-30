@@ -3,7 +3,7 @@
 Route::group(['prefix' => 'install', 'as' => 'LaravelInstaller::', 'namespace' => 'RachidLaasri\LaravelInstaller\Controllers', 'middleware' => ['web', 'install']], function () {
     Route::get('/', [
         'as' => 'welcome',
-        'uses' => 'WelcomeController@welcome',
+        'uses' => 'EnvironmentController@environmentWizard',
     ]);
 
     Route::get('environment', [
